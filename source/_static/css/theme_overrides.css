@@ -1,3 +1,8 @@
+/* For hlists in a tab-set, do not include the bullet */
+.sd-tab-content .hlist .simple li {
+    list-style-type: none;
+}
+
 .wy-nav-content {
     max-width: 1200px;
 }
