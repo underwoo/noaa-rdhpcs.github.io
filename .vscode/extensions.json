@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "lextudio.restructuredtext",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "swyddfa.esbonio",
+        "trond-snekvik.simple-rst"
+    ]
+}
