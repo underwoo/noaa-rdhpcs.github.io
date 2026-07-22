@@ -77,6 +77,7 @@ html_css_files = [
 html_js_files = [
     "js/tooltipster.bundle.min.js",
     "js/tooltipster.custom.js",
+    "js/faq-announcements.js",
 ]
 
 # cSpell:ignore gsce nochange

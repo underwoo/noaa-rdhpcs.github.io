@@ -750,65 +750,46 @@ Other
    <https://sites.google.com/d/1QJ-MHpl1y0IEtzQUnIbjF2hUmMNQUMAo/p/1VimyvTrM3ilw2Eug4wrDHJsU9Zi5n5PW/edit>`__.
 
 
+Upcoming Changes
+================
+
+.. raw:: html
+
+   <div id="faq-upcoming-changes" class="faq-dynamic-section">
+     <p class="faq-loading">Loading upcoming changes...</p>
+   </div>
+   <noscript>
+     <p>JavaScript is required to view dynamic content.
+     See <a href="https://github.com/underwoo/rdhpcs-announcements-test/issues?q=label:upcoming-change">
+     Upcoming Changes on GitHub</a>.</p>
+   </noscript>
+
+
 Known Issues
 ============
 
-*Last reviewed: July 2026*
+.. raw:: html
 
-.. faq:: What is the Intel MPI Collective Algorithms issue?
-   :id: intel-mpi-collective
-   :tags: Intel MPI collective algorithms Ursa AMD NUMA
-
-   It has been observed that the default algorithms configured by Intel
-   oneAPI MPI for collective operations are causing instability on AMD
-   systems. Users have reported instances of code hanging, and system
-   monitoring indicates highly uneven Non-Uniform Memory Access (NUMA)
-   load, leading to node performance issues.
-
-   To mitigate these issues, a module has been created to set the
-   collective algorithms to empirically tested values. We strongly
-   recommend loading this module whenever utilizing Intel oneAPI for code
-   execution on the Ursa cluster.
-
-   .. code-block:: shell
-
-      module load impi-collective-settings/1.0.0
-
-   Please be advised that this module must be loaded in addition to the
-   intel-oneapi-mpi module that your application needs.
+   <div id="faq-known-issues" class="faq-dynamic-section">
+     <p class="faq-loading">Loading known issues...</p>
+   </div>
+   <noscript>
+     <p>JavaScript is required to view dynamic content.
+     See <a href="https://github.com/underwoo/rdhpcs-announcements-test/issues?q=label:known-issue">
+     Known Issues on GitHub</a>.</p>
+   </noscript>
 
 
-Recent User-Facing Changes
-==========================
+Recent Changes
+==============
 
-*Last reviewed: July 2026*
+.. raw:: html
 
-.. faq:: Jan 22, 2025: DTNs for Ursa are now available
-   :id: ursa-dtn-available
-   :tags: Ursa DTN data transfer Globus scratch
-
-   DTNs and the new file systems for Ursa are now available for your use.
-
-   .. list-table::
-      :header-rows: 1
-      :stub-columns: 1
-      :align: left
-
-      * -
-        - Host Name
-        - File System
-        - Globus Endpoints
-      * - Trusted
-        - dtn-ursa.fairmont.rdhpcs.noaa.gov
-        - /scratch[34]
-        - noaardhpcs#ursa
-      * - Untrusted
-        - udtn-ursa.fairmont.rdhpcs.noaa.gov
-        - /scratch[34]/data_untrusted
-        - noaardhpcs#ursa_untrusted
-
-   Using these new DTNs you can do data transfers to the ``/scratch3``
-   and ``/scratch4`` filesystems either using Linux tools such
-   as scp and rsync, or by using Globus Online.
-
-   Please see the :ref:`data-transfer-overview` for more details.
+   <div id="faq-recent-changes" class="faq-dynamic-section">
+     <p class="faq-loading">Loading recent changes...</p>
+   </div>
+   <noscript>
+     <p>JavaScript is required to view dynamic content.
+     See <a href="https://github.com/underwoo/rdhpcs-announcements-test/issues?q=label:recent-change">
+     Recent Changes on GitHub</a>.</p>
+   </noscript>
