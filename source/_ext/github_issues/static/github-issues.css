@@ -1,0 +1,185 @@
+/* ==========================================================================
+   github-issues.css
+   Styles for the github-issues Sphinx extension.
+   All class names use the "github-issues-" prefix.
+   ========================================================================== */
+
+/* Container */
+.github-issues-container {
+    min-height: 20px;
+}
+
+/* Loading state */
+.github-issues-loading {
+    color: #666;
+    font-style: italic;
+    padding: 1rem 0;
+}
+
+/* Empty state */
+.github-issues-empty {
+    color: #586069;
+    font-style: italic;
+    padding: 0.5rem 0;
+}
+
+/* Error state */
+.github-issues-error {
+    color: #d73a4a;
+    padding: 1rem;
+    border: 1px solid #d73a4a;
+    border-radius: 4px;
+    background: #fff5f5;
+}
+
+.github-issues-error a {
+    color: #0366d6;
+}
+
+/* Individual item (collapsible dropdown) */
+.github-issues-item {
+    margin-bottom: 0.75rem;
+    border: 1px solid #e1e4e5;
+    border-radius: 4px;
+}
+
+.github-issues-item[open] {
+    border-color: #2980b9;
+    border-width: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.github-issues-item + .github-issues-item {
+    margin-top: 0.5rem;
+}
+
+.github-issues-item .sd-card-body {
+    padding: 1rem;
+}
+
+/* System tags */
+.github-issues-systems {
+    font-size: 0.9em;
+    color: #586069;
+    margin: 0.5rem 0;
+}
+
+.github-issues-system-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #e1e4e5;
+    border-radius: 3px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    font-size: 0.85em;
+}
+
+/* Date */
+.github-issues-date {
+    font-size: 0.9em;
+    color: #586069;
+    margin: 0.25rem 0;
+}
+
+/* Description */
+.github-issues-description {
+    margin: 1rem 0;
+    line-height: 1.6;
+}
+
+.github-issues-description pre {
+    background: #f6f8fa;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.github-issues-description code {
+    background: #f6f8fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.github-issues-description pre code {
+    background: none;
+    padding: 0;
+}
+
+/* Extra / custom fields */
+.github-issues-field {
+    margin: 0.75rem 0;
+    line-height: 1.6;
+}
+
+/* Documentation link */
+.github-issues-doc-link {
+    margin: 0.5rem 0;
+}
+
+/* "View on GitHub" link */
+.github-issues-issue-link {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e1e4e5;
+    font-size: 0.85em;
+}
+
+.github-issues-issue-link a {
+    color: #586069;
+}
+
+.github-issues-issue-link a:hover {
+    color: #0366d6;
+}
+
+/* ==========================================================================
+   Dark mode
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    .github-issues-item {
+        border-color: #4a4a4a;
+    }
+
+    .github-issues-item[open] {
+        border-color: #5dade2;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .github-issues-error {
+        background: #2d1f1f;
+        border-color: #d73a4a;
+    }
+
+    .github-issues-empty {
+        color: #8b949e;
+    }
+
+    .github-issues-system-tag {
+        background: #4a4a4a;
+        color: #e1e4e5;
+    }
+
+    .github-issues-date,
+    .github-issues-systems {
+        color: #8b949e;
+    }
+
+    .github-issues-description pre,
+    .github-issues-description code {
+        background: #2d333b;
+    }
+
+    .github-issues-issue-link {
+        border-top-color: #4a4a4a;
+    }
+
+    .github-issues-issue-link a {
+        color: #8b949e;
+    }
+
+    .github-issues-issue-link a:hover {
+        color: #58a6ff;
+    }
+}

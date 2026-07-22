@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sphinx-github-issues"
+version = "0.1.0"
+description = "Sphinx extension for rendering GitHub Issues dynamically as collapsible dropdowns"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "NOAA RDHPCS", email = "webmaster.hpcs@noaa.gov" },
+]
+keywords = ["sphinx", "github", "issues", "documentation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Sphinx :: Extension",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Documentation :: Sphinx",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "sphinx>=5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/NOAA-RDHPCS/noaa-rdhpcs.github.io"
+Issues = "https://github.com/NOAA-RDHPCS/noaa-rdhpcs.github.io/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["github_issues"]
+include = [
+    "github_issues/**/*.py",
+    "github_issues/static/**",
+]

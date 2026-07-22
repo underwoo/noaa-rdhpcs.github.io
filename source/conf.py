@@ -34,7 +34,25 @@ extensions = ["sphinx_rtd_theme",
               "sphinx_sitemap",
               "sphinx.ext.autodoc",
               "faq",
+              "github_issues",
               ]
+
+# ---------------------------------------------------------------------------
+# github-issues extension configuration
+# ---------------------------------------------------------------------------
+github_issues_config = {
+    "repo": "underwoo/rdhpcs-announcements-test",
+    "approved_label": "approved",
+    "empty_message": "There are no items in this section at this time.",
+    "cache_minutes": 5,
+    "show_github_link": True,
+    "fields": {
+        "title":         ["title", "change-title", "issue-title"],
+        "date":          ["effective-date", "planned-effective-date", "date-identified"],
+        "description":   "description",
+        "documentation": ["documentation-link", "documentation"],
+    },
+}
 
 # Additional templates for all locations
 templates_path = ["_templates"]
@@ -77,7 +95,6 @@ html_css_files = [
 html_js_files = [
     "js/tooltipster.bundle.min.js",
     "js/tooltipster.custom.js",
-    "js/faq-announcements.js",
 ]
 
 # cSpell:ignore gsce nochange

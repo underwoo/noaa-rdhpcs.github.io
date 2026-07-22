@@ -753,43 +753,19 @@ Other
 Upcoming Changes
 ================
 
-.. raw:: html
-
-   <div id="faq-upcoming-changes" class="faq-dynamic-section">
-     <p class="faq-loading">Loading upcoming changes...</p>
-   </div>
-   <noscript>
-     <p>JavaScript is required to view dynamic content.
-     See <a href="https://github.com/underwoo/rdhpcs-announcements-test/issues?q=label:upcoming-change">
-     Upcoming Changes on GitHub</a>.</p>
-   </noscript>
+.. github-issues:: upcoming-change
+   :empty-message: There are no upcoming changes at this time.
 
 
 Known Issues
 ============
 
-.. raw:: html
-
-   <div id="faq-known-issues" class="faq-dynamic-section">
-     <p class="faq-loading">Loading known issues...</p>
-   </div>
-   <noscript>
-     <p>JavaScript is required to view dynamic content.
-     See <a href="https://github.com/underwoo/rdhpcs-announcements-test/issues?q=label:known-issue">
-     Known Issues on GitHub</a>.</p>
-   </noscript>
+.. github-issues:: known-issue
+   :empty-message: There are no known issues at this time.
 
 
 Recent Changes
 ==============
 
-.. raw:: html
-
-   <div id="faq-recent-changes" class="faq-dynamic-section">
-     <p class="faq-loading">Loading recent changes...</p>
-   </div>
-   <noscript>
-     <p>JavaScript is required to view dynamic content.
-     See <a href="https://github.com/underwoo/rdhpcs-announcements-test/issues?q=label:recent-change">
-     Recent Changes on GitHub</a>.</p>
-   </noscript>
+.. github-issues:: recent-change
+   :empty-message: There are no recent changes at this time.
