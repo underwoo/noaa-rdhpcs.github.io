@@ -15,9 +15,11 @@
  *   data-display-days     Number of days for date window calculations
  *   data-show-severity    "true" / "false"
  *   data-severity-config  JSON object: {label_pattern, levels, colors}
+ *   data-max-items        Max items to show after filtering (0 = unlimited)
+ *   data-hide-fields      JSON array of field names to suppress
  *   data-empty-message    Text when no issues match
  *   data-show-github-link "true" / "false"
- *   data-cache-minutes    localStorage cache duration
+ *   data-cache-minutes    localStorage cache duration (per-container)
  *   data-fields           JSON object mapping field roles to name lists
  *
  * No global state — every container is independent.
@@ -62,6 +64,8 @@
       displayDays:    parseInt(d.displayDays, 10) || 60,
       showSeverity:   d.showSeverity === "true",
       severityConfig: d.severityConfig ? JSON.parse(d.severityConfig) : {},
+      maxItems:       parseInt(d.maxItems, 10) || 0,
+      hideFields:     d.hideFields ? JSON.parse(d.hideFields) : [],
       emptyMessage:   d.emptyMessage || "There are no items in this section at this time.",
       showGithubLink: d.showGithubLink !== "false",
       cacheMinutes:   parseInt(d.cacheMinutes, 10) || 5,
@@ -372,6 +376,15 @@
   function renderIssue(issue, config) {
     const f = config.fields;
     const body = parseBody(issue.body);
+    const hidden = config.hideFields;   // list of field names to suppress
+
+    /**
+     * Return true if a field name should be hidden.
+     * Checks exact match and also matches any of a list of candidate names.
+     */
+    function isHidden(names) {
+      return names.some((n) => hidden.includes(n));
+    }
 
     // Known special field keys (rendered in dedicated locations)
     const knownKeys = [
@@ -385,23 +398,27 @@
       issue.title.replace(/^\[.*?\]\s*/, "");
 
     // Date
-    const dateStr = getField(body, f.date);
+    const dateStr = isHidden(f.date) ? "" : getField(body, f.date);
 
     // Affected systems (checkbox format: "- [X] System Name")
+    const showSystems = !hidden.includes("affected-systems");
     const systemsRaw = body["affected-systems"] || "";
     const systems = [];
-    for (const m of systemsRaw.matchAll(/- \[x\] (.+)/gi)) {
-      systems.push(m[1].trim());
+    if (showSystems) {
+      for (const m of systemsRaw.matchAll(/- \[x\] (.+)/gi)) {
+        systems.push(m[1].trim());
+      }
     }
 
     // Description
-    const description = getField(body, f.description);
+    const description = isHidden(f.description) ? "" : getField(body, f.description);
 
     // Documentation link
-    const docLink = getField(body, f.documentation);
+    const docLink = isHidden(f.documentation) ? "" : getField(body, f.documentation);
 
-    // Extra fields appearing after Description
-    const extras = extraFieldKeys(body, f.description, knownKeys);
+    // Extra fields appearing after Description, excluding hidden ones
+    const extras = extraFieldKeys(body, f.description, knownKeys)
+      .filter((key) => !hidden.includes(key));
 
     // --- Build content ---
     let content = "";
@@ -501,13 +518,17 @@
         return passesDateFilter(date, config.dateFilter, config.displayDays);
       });
 
+      // Apply max-items limit (0 means unlimited)
+      const limited =
+        config.maxItems > 0 ? filtered.slice(0, config.maxItems) : filtered;
+
       if (filtered.length === 0) {
         container.innerHTML =
           `<p class="github-issues-empty">${config.emptyMessage}</p>`;
         return;
       }
 
-      container.innerHTML = filtered
+      container.innerHTML = limited
         .map((issue) => renderIssue(issue, config))
         .join("");
     } catch (err) {

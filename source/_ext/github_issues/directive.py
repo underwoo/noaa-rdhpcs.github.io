@@ -16,6 +16,9 @@ Directive syntax
       :date-field: effective-date
       :display-days: 60
       :show-severity: true
+      :max-items: 5
+      :hide-fields: workaround, user-action-required
+      :cache-minutes: 10
       :empty-message: No items at this time.
       :show-github-link: true
 
@@ -72,6 +75,21 @@ label (positional argument)
     regex defined in ``github_issues_config``.  Accepts ``true`` /
     ``false`` (case-insensitive).  Default: ``false``.
 
+:max-items:
+    Maximum number of items to display after filtering.  When omitted
+    or ``0``, all matching items are shown.  Items are taken in the
+    order returned by the GitHub API (newest first by default).
+
+:hide-fields:
+    Comma-separated list of body field names to suppress from the
+    rendered output.  Applies to both known fields and custom fields.
+    Example: ``workaround, user-action-required``.
+
+:cache-minutes:
+    Override the browser-side localStorage cache duration for this
+    container.  Defaults to ``cache_minutes`` in
+    ``github_issues_config`` (built-in default: ``5``).
+
 :empty-message:
     Text displayed when no issues match the filters.
 
@@ -119,6 +137,9 @@ class GithubIssuesDirective(SphinxDirective):
         "date-field":       directives.unchanged,
         "display-days":     directives.positive_int,
         "show-severity":    directives.unchanged,
+        "max-items":        directives.nonnegative_int,
+        "hide-fields":      directives.unchanged,
+        "cache-minutes":    directives.positive_int,
         "empty-message":    directives.unchanged,
         "show-github-link": directives.unchanged,
     }
@@ -192,6 +213,21 @@ class GithubIssuesDirective(SphinxDirective):
             default=False,
         )
 
+        # :max-items: 0 means "no limit"
+        max_items: int = self.options.get("max-items", 0)
+
+        # :hide-fields: normalised to a list of lowercase hyphen-separated names
+        hide_fields: list[str] = self._labels(
+            self.options.get("hide-fields", "")
+        )
+        hide_fields = [f.lower().replace(" ", "-") for f in hide_fields]
+
+        # :cache-minutes: per-directive override; falls back to global default
+        cache_minutes: int = self.options.get(
+            "cache-minutes",
+            int(cfg.get("cache_minutes", 5)),
+        )
+
         empty_message: str = self.options.get(
             "empty-message",
             cfg.get("empty_message", "There are no items in this section at this time."),
@@ -202,7 +238,6 @@ class GithubIssuesDirective(SphinxDirective):
             default=bool(cfg.get("show_github_link", True)),
         )
 
-        cache_minutes: int = int(cfg.get("cache_minutes", 5))
         fields: dict[str, list[str]] = normalise_field_names(cfg.get("fields", {}))
         # Override the date sub-list with the resolved date_fields
         fields["date"] = date_fields
@@ -220,6 +255,8 @@ class GithubIssuesDirective(SphinxDirective):
             "display-days":    str(display_days),
             "show-severity":   json.dumps(show_severity),
             "severity-config": json.dumps(severity_cfg),
+            "max-items":       str(max_items),
+            "hide-fields":     json.dumps(hide_fields),
             "empty-message":   empty_message,
             "show-github-link": json.dumps(show_github_link),
             "cache-minutes":   str(cache_minutes),
