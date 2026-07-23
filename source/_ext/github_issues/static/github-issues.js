@@ -7,16 +7,18 @@
  * Each container is a <div class="github-issues-container"> element
  * whose data-* attributes carry all configuration:
  *
- *   data-label          Primary label to filter by (required)
- *   data-repo           GitHub repository "owner/repo" (required)
- *   data-approved-label Label that must also be present (optional)
- *   data-filter-labels  JSON array of extra labels (AND logic)
- *   data-date-filter    "none" | "past" | "future" | "window"
- *   data-display-days   Number of days for date window calculations
- *   data-empty-message  Text when no issues match
- *   data-show-github-link  "true" / "false"
- *   data-cache-minutes  localStorage cache duration
- *   data-fields         JSON object mapping field roles to name lists
+ *   data-label            Primary label to filter by (required)
+ *   data-repo             GitHub repository "owner/repo" (required)
+ *   data-approved-label   Label that must also be present (optional)
+ *   data-filter-labels    JSON array of extra labels (AND logic)
+ *   data-date-filter      "none" | "past" | "future" | "window"
+ *   data-display-days     Number of days for date window calculations
+ *   data-show-severity    "true" / "false"
+ *   data-severity-config  JSON object: {label_pattern, levels, colors}
+ *   data-empty-message    Text when no issues match
+ *   data-show-github-link "true" / "false"
+ *   data-cache-minutes    localStorage cache duration
+ *   data-fields           JSON object mapping field roles to name lists
  *
  * No global state — every container is independent.
  */
@@ -28,7 +30,7 @@
   const CACHE_VERSION = "v1";
 
   // -----------------------------------------------------------------------
-  // Utility helpers
+  // Configuration reader
   // -----------------------------------------------------------------------
 
   /**
@@ -52,21 +54,27 @@
     });
 
     return {
-      label: d.label || "",
-      repo: d.repo || "",
-      approvedLabel: d.approvedLabel || "",
-      filterLabels: d.filterLabels ? JSON.parse(d.filterLabels) : [],
-      dateFilter: (d.dateFilter || "none").toLowerCase(),
-      displayDays: parseInt(d.displayDays, 10) || 60,
-      emptyMessage: d.emptyMessage || "There are no items in this section at this time.",
+      label:          d.label || "",
+      repo:           d.repo || "",
+      approvedLabel:  d.approvedLabel || "",
+      filterLabels:   d.filterLabels ? JSON.parse(d.filterLabels) : [],
+      dateFilter:     (d.dateFilter || "none").toLowerCase(),
+      displayDays:    parseInt(d.displayDays, 10) || 60,
+      showSeverity:   d.showSeverity === "true",
+      severityConfig: d.severityConfig ? JSON.parse(d.severityConfig) : {},
+      emptyMessage:   d.emptyMessage || "There are no items in this section at this time.",
       showGithubLink: d.showGithubLink !== "false",
-      cacheMinutes: parseInt(d.cacheMinutes, 10) || 5,
+      cacheMinutes:   parseInt(d.cacheMinutes, 10) || 5,
       fields,
     };
   }
 
+  // -----------------------------------------------------------------------
+  // Caching and fetching
+  // -----------------------------------------------------------------------
+
   /**
-   * Build the localStorage cache key incorporating all filter parameters
+   * Build a localStorage cache key incorporating all filter parameters
    * so that different filter combinations cache independently.
    * @param {Object} config
    * @returns {string}
@@ -86,15 +94,14 @@
   }
 
   /**
-   * Fetch issues from the GitHub API, with localStorage caching.
-   * Builds a label query that requires ALL specified labels (AND logic).
+   * Fetch issues from the GitHub API with localStorage caching.
+   * Builds a label query requiring ALL specified labels (AND logic).
    * @param {Object} config
    * @returns {Promise<Object[]>}
    */
   async function fetchIssues(config) {
     const key = cacheKey(config);
 
-    // Check cache
     try {
       const cached = localStorage.getItem(key);
       if (cached) {
@@ -107,7 +114,6 @@
       // Corrupt cache entry — ignore and re-fetch
     }
 
-    // Build label list: primary + approved + extra filters
     const labels = [config.label];
     if (config.approvedLabel) labels.push(config.approvedLabel);
     labels.push(...config.filterLabels);
@@ -126,7 +132,6 @@
 
     const data = await response.json();
 
-    // Write to cache
     try {
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
     } catch (_) {
@@ -149,7 +154,6 @@
   function parseDate(dateStr) {
     if (!dateStr) return null;
 
-    // YYYY-MM-DD  (most common in issue forms — parse as local midnight)
     const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (isoMatch) {
       return new Date(
@@ -159,7 +163,6 @@
       );
     }
 
-    // Fallback to native parsing
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? null : d;
   }
@@ -173,12 +176,10 @@
    *   future — date > today  OR  date ≥ (today - displayDays)
    *   window — date ≥ (today - displayDays) AND date ≤ (today + displayDays)
    *
-   * If the issue has no parseable date:
-   *   - "none"  → pass
-   *   - others  → pass (show it; reviewer can add a date later)
+   * If the issue has no parseable date, it always passes.
    *
    * @param {Date|null} date
-   * @param {string}    mode       One of the four filter values
+   * @param {string}    mode        "none" | "past" | "future" | "window"
    * @param {number}    displayDays
    * @returns {boolean}
    */
@@ -186,7 +187,6 @@
     if (mode === "none" || date === null) return true;
 
     const now = new Date();
-    // Normalise "today" to midnight so comparisons are day-accurate
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const cutoffPast = new Date(today);
     cutoffPast.setDate(today.getDate() - displayDays);
@@ -197,13 +197,77 @@
       case "past":
         return date >= cutoffPast && date <= today;
       case "future":
-        // Include issues whose date is upcoming OR recently past (linger window)
         return date > today || date >= cutoffPast;
       case "window":
         return date >= cutoffPast && date <= cutoffFuture;
       default:
         return true;
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Severity helpers
+  // -----------------------------------------------------------------------
+
+  /**
+   * Extract a severity level from an issue's label array using the
+   * configured regex pattern.
+   *
+   * @param {Object[]} labels         GitHub label objects ({name, ...})
+   * @param {Object}   severityConfig {label_pattern, levels, colors}
+   * @returns {{level: string, index: number, color: string|null}|null}
+   */
+  function extractSeverity(labels, severityConfig) {
+    const patternStr =
+      (severityConfig && severityConfig.label_pattern) || "^severity:(.+)$";
+    let re;
+    try {
+      re = new RegExp(patternStr, "i");
+    } catch (_) {
+      return null;
+    }
+
+    for (const label of labels) {
+      const match = label.name.match(re);
+      if (match) {
+        const level = match[1].toLowerCase();
+        const levels = ((severityConfig && severityConfig.levels) || []).map(
+          (l) => l.toLowerCase()
+        );
+        const index = levels.indexOf(level);
+        const colors = (severityConfig && severityConfig.colors) || {};
+        const color = colors[level] || null;
+        return { level, index, color };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Build the HTML for a severity badge.
+   *
+   * Uses a positional CSS class (github-issues-severity-level-N) so that
+   * CSS can style severity levels without hardcoding their names.
+   * When the config supplies a color, an inline style is added as a fallback
+   * that works without the default stylesheet.
+   *
+   * @param {{level: string, index: number, color: string|null}} severity
+   * @returns {string} HTML string
+   */
+  function renderSeverityBadge(severity) {
+    const cls =
+      severity.index >= 0
+        ? `github-issues-severity-level-${severity.index}`
+        : "github-issues-severity-unknown";
+
+    const style = severity.color
+      ? ` style="background-color:${severity.color};"`
+      : "";
+
+    const label =
+      severity.level.charAt(0).toUpperCase() + severity.level.slice(1);
+
+    return `<span class="github-issues-severity ${cls}"${style}>${label}</span>`;
   }
 
   // -----------------------------------------------------------------------
@@ -245,8 +309,8 @@
 
   /**
    * Look up a field value by trying a list of candidate key names.
-   * @param {Object} fields  Parsed body fields
-   * @param {string[]} names Candidate keys in priority order
+   * @param {Object}   fields  Parsed body fields
+   * @param {string[]} names   Candidate keys in priority order
    * @returns {string} First matching value, or empty string
    */
   function getField(fields, names) {
@@ -259,18 +323,16 @@
   /**
    * Return field keys that appear AFTER the description field,
    * excluding known special fields rendered elsewhere.
-   * @param {Object} fields   Parsed body fields
+   * @param {Object}   fields     Parsed body fields
    * @param {string[]} descNames  Candidate keys for the description field
-   * @param {string[]} knownKeys  All known/special field keys to skip
+   * @param {string[]} knownKeys  Special field keys to skip
    * @returns {string[]} Ordered list of extra field keys
    */
   function extraFieldKeys(fields, descNames, knownKeys) {
     const allKeys = Object.keys(fields);
     const descIdx = allKeys.findIndex((k) => descNames.includes(k));
     if (descIdx === -1) return [];
-    return allKeys
-      .slice(descIdx + 1)
-      .filter((k) => !knownKeys.includes(k));
+    return allKeys.slice(descIdx + 1).filter((k) => !knownKeys.includes(k));
   }
 
   // -----------------------------------------------------------------------
@@ -311,13 +373,13 @@
     const f = config.fields;
     const body = parseBody(issue.body);
 
-    // Known special field keys (used for structured rendering)
+    // Known special field keys (rendered in dedicated locations)
     const knownKeys = [
       ...f.title, ...f.date, ...f.description, ...f.documentation,
       "affected-systems",
     ];
 
-    // Title: prefer body field, fall back to issue title (strip prefix)
+    // Title: prefer body field, fall back to issue title with prefix stripped
     const title =
       getField(body, f.title) ||
       issue.title.replace(/^\[.*?\]\s*/, "");
@@ -325,7 +387,7 @@
     // Date
     const dateStr = getField(body, f.date);
 
-    // Affected systems (checkbox format)
+    // Affected systems (checkbox format: "- [X] System Name")
     const systemsRaw = body["affected-systems"] || "";
     const systems = [];
     for (const m of systemsRaw.matchAll(/- \[x\] (.+)/gi)) {
@@ -344,6 +406,14 @@
     // --- Build content ---
     let content = "";
 
+    // Severity badge (shown first, before system tags)
+    if (config.showSeverity) {
+      const severity = extractSeverity(issue.labels, config.severityConfig);
+      if (severity) {
+        content += renderSeverityBadge(severity);
+      }
+    }
+
     // System tags
     if (systems.length > 0) {
       const tags = systems
@@ -352,7 +422,7 @@
       content += `<div class="github-issues-systems">Affects: ${tags}</div>`;
     }
 
-    // Effective date
+    // Date
     if (dateStr) {
       content += `<div class="github-issues-date"><strong>Date:</strong> ${dateStr}</div>`;
     }
@@ -362,7 +432,7 @@
       content += `<div class="github-issues-description">${mdToHtml(description)}</div>`;
     }
 
-    // Extra fields (rendered in order)
+    // Extra fields (rendered in order they appear in the body)
     for (const key of extras) {
       const label = key
         .split("-")
@@ -376,7 +446,7 @@
       content += `<div class="github-issues-doc-link"><a href="${docLink}" target="_blank" rel="noopener noreferrer">More information</a></div>`;
     }
 
-    // GitHub link
+    // "View on GitHub" link
     if (config.showGithubLink) {
       content += `<div class="github-issues-issue-link"><a href="${issue.html_url}" target="_blank" rel="noopener noreferrer">View on GitHub</a></div>`;
     }
@@ -403,7 +473,7 @@
   }
 
   // -----------------------------------------------------------------------
-  // Section rendering
+  // Container rendering
   // -----------------------------------------------------------------------
 
   /**
@@ -432,372 +502,14 @@
       });
 
       if (filtered.length === 0) {
-        container.innerHTML = `<p class="github-issues-empty">${config.emptyMessage}</p>`;
+        container.innerHTML =
+          `<p class="github-issues-empty">${config.emptyMessage}</p>`;
         return;
       }
 
-      container.innerHTML = filtered.map((issue) => renderIssue(issue, config)).join("");
-    } catch (err) {
-      console.error("github-issues: fetch error", err);
-      const repoUrl = `https://github.com/${config.repo}/issues?q=label:${encodeURIComponent(config.label)}`;
-      container.innerHTML = `
-        <div class="github-issues-error">
-          <p>Unable to load content. Please check
-          <a href="${repoUrl}" target="_blank" rel="noopener noreferrer">GitHub Issues</a> directly.</p>
-        </div>`;
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Initialisation
-  // -----------------------------------------------------------------------
-
-  function init() {
-    document
-      .querySelectorAll(".github-issues-container")
-      .forEach((container) => renderContainer(container));
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-
-(function () {
-  "use strict";
-
-  const API_BASE = "https://api.github.com/repos";
-  const CACHE_VERSION = "v1";
-
-  // -----------------------------------------------------------------------
-  // Utility helpers
-  // -----------------------------------------------------------------------
-
-  /**
-   * Read and parse configuration from a container's data-* attributes.
-   * @param {HTMLElement} container
-   * @returns {Object} config
-   */
-  function readConfig(container) {
-    const d = container.dataset;
-
-    const fields = d.fields ? JSON.parse(d.fields) : {
-      title: ["title", "change-title", "issue-title"],
-      date: ["effective-date", "planned-effective-date", "date-identified"],
-      description: ["description"],
-      documentation: ["documentation-link", "documentation"],
-    };
-
-    // Normalise all field values to arrays
-    Object.keys(fields).forEach((k) => {
-      if (!Array.isArray(fields[k])) fields[k] = [fields[k]];
-    });
-
-    return {
-      label: d.label || "",
-      repo: d.repo || "",
-      approvedLabel: d.approvedLabel || "",
-      filterLabels: d.filterLabels ? JSON.parse(d.filterLabels) : [],
-      emptyMessage: d.emptyMessage || "There are no items in this section at this time.",
-      showGithubLink: d.showGithubLink !== "false",
-      cacheMinutes: parseInt(d.cacheMinutes, 10) || 5,
-      fields,
-    };
-  }
-
-  /**
-   * Build the localStorage cache key incorporating all filter parameters
-   * so that different filter combinations cache independently.
-   * @param {Object} config
-   * @returns {string}
-   */
-  function cacheKey(config) {
-    const parts = [
-      "github_issues",
-      CACHE_VERSION,
-      config.repo,
-      config.label,
-      config.approvedLabel,
-      ...[...config.filterLabels].sort(),
-    ];
-    return parts.join("|");
-  }
-
-  /**
-   * Fetch issues from the GitHub API, with localStorage caching.
-   * Builds a label query that requires ALL specified labels (AND logic).
-   * @param {Object} config
-   * @returns {Promise<Object[]>}
-   */
-  async function fetchIssues(config) {
-    const key = cacheKey(config);
-
-    // Check cache
-    try {
-      const cached = localStorage.getItem(key);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < config.cacheMinutes * 60 * 1000) {
-          return data;
-        }
-      }
-    } catch (_) {
-      // Corrupt cache entry — ignore and re-fetch
-    }
-
-    // Build label list: primary + approved + extra filters
-    const labels = [config.label];
-    if (config.approvedLabel) labels.push(config.approvedLabel);
-    labels.push(...config.filterLabels);
-
-    const url =
-      `${API_BASE}/${config.repo}/issues` +
-      `?state=open&labels=${encodeURIComponent(labels.join(","))}&per_page=100`;
-
-    const response = await fetch(url, {
-      headers: { Accept: "application/vnd.github.v3+json" },
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Write to cache
-    try {
-      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (_) {
-      // Storage full or unavailable — continue without caching
-    }
-
-    return data;
-  }
-
-  // -----------------------------------------------------------------------
-  // Issue body parsing
-  // -----------------------------------------------------------------------
-
-  /**
-   * Parse a GitHub issue form body into a field map.
-   * GitHub issue forms produce sections like:
-   *
-   *   ### Field Label
-   *
-   *   Field value
-   *
-   * The section heading is lower-cased and spaces replaced with hyphens
-   * to form the key.
-   *
-   * @param {string} body
-   * @returns {Object} key → value
-   */
-  function parseBody(body) {
-    const fields = {};
-    if (!body) return fields;
-
-    const sections = body.split(/^### /m);
-    for (const section of sections) {
-      if (!section.trim()) continue;
-      const lines = section.split("\n");
-      const key = lines[0].trim().toLowerCase().replace(/\s+/g, "-");
-      const value = lines
-        .slice(1)
-        .join("\n")
-        .trim()
-        .replace(/^_No response_$/im, "");
-      if (key && value) fields[key] = value;
-    }
-    return fields;
-  }
-
-  /**
-   * Look up a field value by trying a list of candidate key names.
-   * @param {Object} fields  Parsed body fields
-   * @param {string[]} names Candidate keys in priority order
-   * @returns {string} First matching value, or empty string
-   */
-  function getField(fields, names) {
-    for (const name of names) {
-      if (fields[name]) return fields[name];
-    }
-    return "";
-  }
-
-  /**
-   * Return field keys that appear AFTER the description field,
-   * excluding known special fields rendered elsewhere.
-   * @param {Object} fields   Parsed body fields
-   * @param {string[]} descNames  Candidate keys for the description field
-   * @param {string[]} knownKeys  All known/special field keys to skip
-   * @returns {string[]} Ordered list of extra field keys
-   */
-  function extraFieldKeys(fields, descNames, knownKeys) {
-    const allKeys = Object.keys(fields);
-    const descIdx = allKeys.findIndex((k) => descNames.includes(k));
-    if (descIdx === -1) return [];
-    return allKeys
-      .slice(descIdx + 1)
-      .filter((k) => !knownKeys.includes(k));
-  }
-
-  // -----------------------------------------------------------------------
-  // Markdown → HTML (minimal, safe)
-  // -----------------------------------------------------------------------
-
-  /**
-   * Convert a small subset of Markdown to HTML.
-   * Escapes HTML entities first to prevent injection.
-   * @param {string} text
-   * @returns {string}
-   */
-  function mdToHtml(text) {
-    if (!text) return "";
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/```[\w]*\n([\s\S]*?)```/g, "<pre><code>$1</code></pre>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-      .replace(/\n/g, "<br>");
-  }
-
-  // -----------------------------------------------------------------------
-  // Rendering
-  // -----------------------------------------------------------------------
-
-  /**
-   * Render a single GitHub issue as a collapsible details/summary element.
-   * @param {Object} issue   GitHub issue object
-   * @param {Object} config  Resolved config for this container
-   * @returns {string} HTML string
-   */
-  function renderIssue(issue, config) {
-    const f = config.fields;
-    const body = parseBody(issue.body);
-
-    // Known special field keys (used for structured rendering)
-    const knownKeys = [
-      ...f.title, ...f.date, ...f.description, ...f.documentation,
-      "affected-systems",
-    ];
-
-    // Title: prefer body field, fall back to issue title (strip prefix)
-    let title =
-      getField(body, f.title) ||
-      issue.title.replace(/^\[.*?\]\s*/, "");
-
-    // Date
-    const dateStr = getField(body, f.date);
-
-    // Affected systems (checkbox format)
-    const systemsRaw = body["affected-systems"] || "";
-    const systems = [];
-    for (const m of systemsRaw.matchAll(/- \[x\] (.+)/gi)) {
-      systems.push(m[1].trim());
-    }
-
-    // Description
-    const description = getField(body, f.description);
-
-    // Documentation link
-    const docLink = getField(body, f.documentation);
-
-    // Extra fields appearing after Description
-    const extras = extraFieldKeys(body, f.description, knownKeys);
-
-    // --- Build content ---
-    let content = "";
-
-    // System tags
-    if (systems.length > 0) {
-      const tags = systems
-        .map((s) => `<span class="github-issues-system-tag">${s}</span>`)
+      container.innerHTML = filtered
+        .map((issue) => renderIssue(issue, config))
         .join("");
-      content += `<div class="github-issues-systems">Affects: ${tags}</div>`;
-    }
-
-    // Effective date
-    if (dateStr) {
-      content += `<div class="github-issues-date"><strong>Date:</strong> ${dateStr}</div>`;
-    }
-
-    // Description
-    if (description) {
-      content += `<div class="github-issues-description">${mdToHtml(description)}</div>`;
-    }
-
-    // Extra fields (rendered in order)
-    for (const key of extras) {
-      const label = key
-        .split("-")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
-      content += `<div class="github-issues-field"><strong>${label}:</strong> ${mdToHtml(body[key])}</div>`;
-    }
-
-    // Documentation link
-    if (docLink) {
-      content += `<div class="github-issues-doc-link"><a href="${docLink}" target="_blank" rel="noopener noreferrer">More information</a></div>`;
-    }
-
-    // GitHub link
-    if (config.showGithubLink) {
-      content += `<div class="github-issues-issue-link"><a href="${issue.html_url}" target="_blank" rel="noopener noreferrer">View on GitHub</a></div>`;
-    }
-
-    return `
-      <details class="sd-dropdown github-issues-item">
-        <summary class="sd-summary-title sd-card-header">
-          ${title}
-          <span class="sd-summary-icon sd-summary-down">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-              <path d="M12 16l-6-6h12z"/>
-            </svg>
-          </span>
-          <span class="sd-summary-icon sd-summary-up">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-              <path d="M12 8l6 6H6z"/>
-            </svg>
-          </span>
-        </summary>
-        <div class="sd-summary-content sd-card-body">
-          ${content}
-        </div>
-      </details>`;
-  }
-
-  // -----------------------------------------------------------------------
-  // Section rendering
-  // -----------------------------------------------------------------------
-
-  /**
-   * Fetch issues and render them into a container element.
-   * @param {HTMLElement} container
-   */
-  async function renderContainer(container) {
-    const config = readConfig(container);
-
-    if (!config.repo || !config.label) {
-      container.innerHTML =
-        '<p class="github-issues-error">Configuration error: missing repo or label.</p>';
-      return;
-    }
-
-    try {
-      const issues = await fetchIssues(config);
-
-      if (issues.length === 0) {
-        container.innerHTML = `<p class="github-issues-empty">${config.emptyMessage}</p>`;
-        return;
-      }
-
-      container.innerHTML = issues.map((issue) => renderIssue(issue, config)).join("");
     } catch (err) {
       console.error("github-issues: fetch error", err);
       const repoUrl = `https://github.com/${config.repo}/issues?q=label:${encodeURIComponent(config.label)}`;

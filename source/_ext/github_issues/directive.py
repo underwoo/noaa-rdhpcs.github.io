@@ -15,6 +15,7 @@ Directive syntax
       :date-filter: past
       :date-field: effective-date
       :display-days: 60
+      :show-severity: true
       :empty-message: No items at this time.
       :show-github-link: true
 
@@ -40,7 +41,7 @@ label (positional argument)
     How to filter issues by the date field.  One of:
 
     ``none``
-        No date filtering — show all matching issues regardless of date.
+        No date filtering -- show all matching issues regardless of date.
     ``past``
         Show issues whose date is within the past ``display-days`` days.
     ``future``
@@ -64,6 +65,12 @@ label (positional argument)
     Number of days used by ``past``, ``future``, and ``window``
     filters.  Defaults to ``display_days`` in ``github_issues_config``
     (built-in default: ``60``).
+
+:show-severity:
+    Whether to display a severity badge on each item.  The badge is
+    derived from GitHub labels that match the ``severity.label_pattern``
+    regex defined in ``github_issues_config``.  Accepts ``true`` /
+    ``false`` (case-insensitive).  Default: ``false``.
 
 :empty-message:
     Text displayed when no issues match the filters.
@@ -105,13 +112,14 @@ class GithubIssuesDirective(SphinxDirective):
     final_argument_whitespace = False
 
     option_spec = {
-        "repo": directives.unchanged,
-        "approved-label": directives.unchanged,
-        "filter-labels": directives.unchanged,
-        "date-filter": _date_filter_choice,
-        "date-field": directives.unchanged,
-        "display-days": directives.positive_int,
-        "empty-message": directives.unchanged,
+        "repo":             directives.unchanged,
+        "approved-label":   directives.unchanged,
+        "filter-labels":    directives.unchanged,
+        "date-filter":      _date_filter_choice,
+        "date-field":       directives.unchanged,
+        "display-days":     directives.positive_int,
+        "show-severity":    directives.unchanged,
+        "empty-message":    directives.unchanged,
         "show-github-link": directives.unchanged,
     }
 
@@ -168,7 +176,6 @@ class GithubIssuesDirective(SphinxDirective):
         if date_field_raw:
             date_fields: list[str] = self._labels(date_field_raw)
         else:
-            # Fall back to the fields.date list from merged config
             fields_cfg = normalise_field_names(cfg.get("fields", {}))
             date_fields = fields_cfg.get(
                 "date",
@@ -178,6 +185,11 @@ class GithubIssuesDirective(SphinxDirective):
         display_days: int = self.options.get(
             "display-days",
             int(cfg.get("display_days", 60)),
+        )
+
+        show_severity: bool = self._bool(
+            self.options.get("show-severity"),
+            default=False,
         )
 
         empty_message: str = self.options.get(
@@ -195,18 +207,23 @@ class GithubIssuesDirective(SphinxDirective):
         # Override the date sub-list with the resolved date_fields
         fields["date"] = date_fields
 
+        # Severity config: pass the full severity dict to JS as JSON
+        severity_cfg: dict[str, Any] = cfg.get("severity", {})
+
         # --- build data-* payload passed to JavaScript ------------------
         data: dict[str, Any] = {
-            "label": primary_label,
-            "repo": repo,
-            "approved-label": approved_label,
-            "filter-labels": filter_labels,
-            "date-filter": date_filter,
-            "display-days": str(display_days),
-            "empty-message": empty_message,
+            "label":           primary_label,
+            "repo":            repo,
+            "approved-label":  approved_label,
+            "filter-labels":   filter_labels,
+            "date-filter":     date_filter,
+            "display-days":    str(display_days),
+            "show-severity":   json.dumps(show_severity),
+            "severity-config": json.dumps(severity_cfg),
+            "empty-message":   empty_message,
             "show-github-link": json.dumps(show_github_link),
-            "cache-minutes": str(cache_minutes),
-            "fields": json.dumps(fields),
+            "cache-minutes":   str(cache_minutes),
+            "fields":          json.dumps(fields),
         }
 
         # Build HTML attribute string
@@ -236,4 +253,10 @@ class GithubIssuesDirective(SphinxDirective):
 
 def _escape(value: str) -> str:
     """Escape double-quotes and angle brackets for HTML attribute values."""
-    return value.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        value
+        .replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )

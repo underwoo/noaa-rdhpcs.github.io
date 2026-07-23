@@ -4,6 +4,8 @@
    :keywords: FAQ, frequently asked questions, accounts, jobs, data,
     software, connections, troubleshooting, RDHPCS
 
+.. cspell:words: SEGV cartopy geocat
+
 .. _FAQ:
 
 ##########################
@@ -763,6 +765,7 @@ Known Issues
 
 .. github-issues:: known-issue
    :date-filter: none
+   :show-severity: true
    :empty-message: There are no known issues at this time.
 
 

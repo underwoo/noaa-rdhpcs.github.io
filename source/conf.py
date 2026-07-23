@@ -46,13 +46,23 @@ github_issues_config = {
     "empty_message": "There are no items in this section at this time.",
     "cache_minutes": 5,
     "show_github_link": True,
-    "date_filter": "none",   # default: no date filtering unless overridden per-directive
+    "date_filter": "none",
     "display_days": 60,
     "fields": {
         "title":         ["title", "change-title", "issue-title"],
         "date":          ["effective-date", "planned-effective-date", "date-identified"],
         "description":   "description",
         "documentation": ["documentation-link", "documentation"],
+    },
+    "severity": {
+        "label_pattern": r"^severity:(.+)$",
+        "levels": ["critical", "high", "medium", "low"],
+        "colors": {
+            "critical": "#b60205",
+            "high":     "#d93f0b",
+            "medium":   "#e4e669",
+            "low":      "#0e8a16",
+        },
     },
 }
 
