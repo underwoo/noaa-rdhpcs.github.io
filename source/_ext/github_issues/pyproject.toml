@@ -11,27 +11,64 @@ license = { text = "MIT" }
 authors = [
     { name = "NOAA RDHPCS", email = "webmaster.hpcs@noaa.gov" },
 ]
-keywords = ["sphinx", "github", "issues", "documentation"]
+keywords = [
+    "sphinx",
+    "github",
+    "issues",
+    "documentation",
+    "announcements",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: Sphinx :: Extension",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Documentation :: Sphinx",
+    "Topic :: Software Development :: Documentation",
 ]
 requires-python = ">=3.9"
 dependencies = [
     "sphinx>=5.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "sphinx>=5.0",
+    "hatch",
+]
+
 [project.urls]
 Homepage = "https://github.com/NOAA-RDHPCS/noaa-rdhpcs.github.io"
+Documentation = "https://github.com/NOAA-RDHPCS/noaa-rdhpcs.github.io/blob/main/source/_ext/github_issues/README.md"
 Issues = "https://github.com/NOAA-RDHPCS/noaa-rdhpcs.github.io/issues"
+Changelog = "https://github.com/NOAA-RDHPCS/noaa-rdhpcs.github.io/blob/main/source/_ext/github_issues/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["github_issues"]
 include = [
     "github_issues/**/*.py",
-    "github_issues/static/**",
+    "github_issues/static/github-issues.js",
+    "github_issues/static/github-issues.css",
+    "github_issues/README.md",
+    "github_issues/CHANGELOG.md",
+    "github_issues/LICENSE",
 ]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "github_issues/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+[tool.hatch.version]
+path = "github_issues/__init__.py"
+pattern = '"version": "(?P<version>[^"]+)"'

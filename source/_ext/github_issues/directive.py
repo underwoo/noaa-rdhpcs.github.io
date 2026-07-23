@@ -165,7 +165,28 @@ class GithubIssuesDirective(SphinxDirective):
     # ------------------------------------------------------------------
 
     def run(self) -> list[nodes.Node]:
-        cfg = get_config(self.env.app.config)
+        """Process the directive and return a list of docutils nodes.
+
+        Reads all options, merges them with ``github_issues_config``
+        defaults from ``conf.py``, serialises every resolved value into
+        a ``data-*`` attribute on a ``<div>`` element, and returns a
+        single :class:`docutils.nodes.raw` node containing that element
+        plus a ``<noscript>`` fallback.
+
+        The ``<div>`` carries the class ``github-issues-container`` and
+        is targeted by ``github-issues.js`` at page-load time.
+
+        Returns
+        -------
+        list[nodes.Node]
+            A one-element list containing a raw HTML node.
+
+        Raises
+        ------
+        DirectiveError
+            When no repository is configured (neither as a directive
+            option nor in ``github_issues_config``).
+        """
 
         primary_label: str = self.arguments[0].strip()
 
