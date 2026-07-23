@@ -12,6 +12,9 @@ from typing import Any
 # Built-in defaults
 # ---------------------------------------------------------------------------
 
+#: Valid values for the ``date_filter`` option.
+DATE_FILTER_VALUES = frozenset({"none", "past", "future", "window"})
+
 #: Default configuration values. Every key here is optional in the user's
 #: ``github_issues_config`` dict; missing keys fall back to these values.
 DEFAULTS: dict[str, Any] = {
@@ -35,7 +38,77 @@ DEFAULTS: dict[str, Any] = {
     },
     # Whether to show a "View on GitHub" link at the bottom of each item.
     "show_github_link": True,
+    # ---------------------------------------------------------------------------
+    # Date filtering defaults (Phase 2)
+    # ---------------------------------------------------------------------------
+    # How to filter issues by the date field.
+    # Values: "none" | "past" | "future" | "window"
+    #
+    #   none   — no date filtering; show all matching issues
+    #   past   — date <= today AND date >= (today - display_days)
+    #   future — date > today OR  date >= (today - display_days)
+    #   window — date >= (today - display_days) AND
+    #            date <= (today + display_days)
+    "date_filter": "none",
+    # Width of the display window in days (used by "past", "future", "window").
+    "display_days": 60,
 }
+
+
+def get_config(app_config: Any) -> dict[str, Any]:
+    """Return a fully-merged configuration dict.
+
+    Merges the user's ``github_issues_config`` value from ``conf.py``
+    over the built-in :data:`DEFAULTS`.  Nested dicts (currently only
+    ``fields``) are merged shallowly so the user only needs to override
+    the keys they care about.
+
+    Parameters
+    ----------
+    app_config:
+        The Sphinx ``app.config`` object.  The function reads the
+        ``github_issues_config`` attribute from it.
+
+    Returns
+    -------
+    dict
+        Merged configuration dictionary.
+    """
+    user: dict[str, Any] = getattr(app_config, "github_issues_config", {}) or {}
+
+    merged: dict[str, Any] = dict(DEFAULTS)
+    for key, value in user.items():
+        if key == "fields" and isinstance(value, dict):
+            merged["fields"] = {**DEFAULTS["fields"], **value}
+        else:
+            merged[key] = value
+
+    return merged
+
+
+def normalise_field_names(fields_config: dict[str, Any]) -> dict[str, list[str]]:
+    """Normalise field-name config values to lists.
+
+    Ensures every entry in the ``fields`` sub-dict is a ``list[str]``
+    so the JavaScript serialisation is uniform.
+
+    Parameters
+    ----------
+    fields_config:
+        The ``fields`` sub-dict from the merged configuration.
+
+    Returns
+    -------
+    dict
+        The same keys, with every value guaranteed to be a list.
+    """
+    result: dict[str, list[str]] = {}
+    for key, value in fields_config.items():
+        if isinstance(value, str):
+            result[key] = [value]
+        else:
+            result[key] = list(value)
+    return result
 
 
 def get_config(app_config: Any) -> dict[str, Any]:

@@ -12,6 +12,9 @@ Directive syntax
       :repo: owner/repo
       :approved-label: approved
       :filter-labels: system:gaea, component:storage
+      :date-filter: past
+      :date-field: effective-date
+      :display-days: 60
       :empty-message: No items at this time.
       :show-github-link: true
 
@@ -33,6 +36,35 @@ label (positional argument)
     Comma-separated list of extra labels that must ALL be present
     (AND logic).  Example: ``system:gaea, component:storage``.
 
+:date-filter:
+    How to filter issues by the date field.  One of:
+
+    ``none``
+        No date filtering — show all matching issues regardless of date.
+    ``past``
+        Show issues whose date is within the past ``display-days`` days.
+    ``future``
+        Show issues whose date is in the future or within the past
+        ``display-days`` days (useful for upcoming-change notices that
+        should linger briefly after their effective date).
+    ``window``
+        Show issues whose date falls within ``display-days`` days of
+        today in either direction.
+
+    Defaults to the ``date_filter`` key in ``github_issues_config``
+    (built-in default: ``none``).
+
+:date-field:
+    Override which body field name(s) to use as the date.  When
+    omitted the ``fields.date`` list from ``github_issues_config``
+    is used.  May be a single name or a comma-separated list tried
+    in order.
+
+:display-days:
+    Number of days used by ``past``, ``future``, and ``window``
+    filters.  Defaults to ``display_days`` in ``github_issues_config``
+    (built-in default: ``60``).
+
 :empty-message:
     Text displayed when no issues match the filters.
 
@@ -50,7 +82,18 @@ from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.util.docutils import SphinxDirective
 
-from .config import get_config, normalise_field_names
+from .config import DATE_FILTER_VALUES, get_config, normalise_field_names
+
+
+def _date_filter_choice(argument: str) -> str:
+    """Validator for the :date-filter: option."""
+    value = argument.strip().lower()
+    if value not in DATE_FILTER_VALUES:
+        raise ValueError(
+            f"'{argument}' is not a valid date-filter value. "
+            f"Choose from: {', '.join(sorted(DATE_FILTER_VALUES))}"
+        )
+    return value
 
 
 class GithubIssuesDirective(SphinxDirective):
@@ -65,6 +108,9 @@ class GithubIssuesDirective(SphinxDirective):
         "repo": directives.unchanged,
         "approved-label": directives.unchanged,
         "filter-labels": directives.unchanged,
+        "date-filter": _date_filter_choice,
+        "date-field": directives.unchanged,
+        "display-days": directives.positive_int,
         "empty-message": directives.unchanged,
         "show-github-link": directives.unchanged,
     }
@@ -112,6 +158,28 @@ class GithubIssuesDirective(SphinxDirective):
             self.options.get("filter-labels", "")
         )
 
+        date_filter: str = self.options.get(
+            "date-filter",
+            cfg.get("date_filter", "none"),
+        )
+
+        # :date-field: may be a comma-separated list; normalise to list[str]
+        date_field_raw: str = self.options.get("date-field", "")
+        if date_field_raw:
+            date_fields: list[str] = self._labels(date_field_raw)
+        else:
+            # Fall back to the fields.date list from merged config
+            fields_cfg = normalise_field_names(cfg.get("fields", {}))
+            date_fields = fields_cfg.get(
+                "date",
+                ["effective-date", "planned-effective-date", "date-identified"],
+            )
+
+        display_days: int = self.options.get(
+            "display-days",
+            int(cfg.get("display_days", 60)),
+        )
+
         empty_message: str = self.options.get(
             "empty-message",
             cfg.get("empty_message", "There are no items in this section at this time."),
@@ -124,6 +192,8 @@ class GithubIssuesDirective(SphinxDirective):
 
         cache_minutes: int = int(cfg.get("cache_minutes", 5))
         fields: dict[str, list[str]] = normalise_field_names(cfg.get("fields", {}))
+        # Override the date sub-list with the resolved date_fields
+        fields["date"] = date_fields
 
         # --- build data-* payload passed to JavaScript ------------------
         data: dict[str, Any] = {
@@ -131,6 +201,8 @@ class GithubIssuesDirective(SphinxDirective):
             "repo": repo,
             "approved-label": approved_label,
             "filter-labels": filter_labels,
+            "date-filter": date_filter,
+            "display-days": str(display_days),
             "empty-message": empty_message,
             "show-github-link": json.dumps(show_github_link),
             "cache-minutes": str(cache_minutes),

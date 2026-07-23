@@ -46,6 +46,8 @@ github_issues_config = {
     "empty_message": "There are no items in this section at this time.",
     "cache_minutes": 5,
     "show_github_link": True,
+    "date_filter": "none",   # default: no date filtering unless overridden per-directive
+    "display_days": 60,
     "fields": {
         "title":         ["title", "change-title", "issue-title"],
         "date":          ["effective-date", "planned-effective-date", "date-identified"],

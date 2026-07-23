@@ -754,6 +754,7 @@ Upcoming Changes
 ================
 
 .. github-issues:: upcoming-change
+   :date-filter: future
    :empty-message: There are no upcoming changes at this time.
 
 
@@ -761,6 +762,7 @@ Known Issues
 ============
 
 .. github-issues:: known-issue
+   :date-filter: none
    :empty-message: There are no known issues at this time.
 
 
@@ -768,4 +770,5 @@ Recent Changes
 ==============
 
 .. github-issues:: recent-change
+   :date-filter: past
    :empty-message: There are no recent changes at this time.
