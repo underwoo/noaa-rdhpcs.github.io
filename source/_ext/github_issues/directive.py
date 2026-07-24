@@ -187,6 +187,7 @@ class GithubIssuesDirective(SphinxDirective):
             When no repository is configured (neither as a directive
             option nor in ``github_issues_config``).
         """
+        cfg = get_config(self.env.app.config)
 
         primary_label: str = self.arguments[0].strip()
 
