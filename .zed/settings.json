@@ -1,0 +1,29 @@
+{
+  "lsp": {
+    "esbonio": {
+      "initialization_options": {
+        "sphinx.confDir": "${ZED_WORKTREE_ROOT}/source",
+        "sphinx.pythonCommand": ["${ZED_WORKTREE_ROOT}/.venv/bin/python"]
+      }
+    }
+  },
+  "files": {
+    "trim_trailing_whitespace": true
+  },
+  "soft_wrap": "preferred_line_length",
+  "preferred_line_length": 79,
+  "language_overrides": {
+    "reStructuredText": {
+      "tab_size": 3,
+      "hard_tabs": false,
+      "preferred_line_length": 79,
+      "format_on_save": "off"
+    }
+  },
+  "terminal": {
+    "shell": {
+      "program": "/bin/zsh"
+    },
+    "working_directory": "current_project_directory"
+  }
+}

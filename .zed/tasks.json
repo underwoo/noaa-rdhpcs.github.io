@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Sphinx: Build HTML",
+    "command": ".venv/bin/sphinx-build -E -b html source build/html",
+    "tags": ["sphinx-build"]
+  },
+  {
+    "label": "Sphinx: Link Check",
+    "command": ".venv/bin/sphinx-build -q -E -b linkcheck source build/html",
+    "tags": ["sphinx-test"]
+  },
+  {
+    "label": "Sphinx: Start Dev Server",
+    "command": ".venv/bin/python -m http.server -d build/html",
+    "tags": ["sphinx-dev"]
+  },
+  {
+    "label": "doc8: Lint RST files",
+    "command": ".venv/bin/doc8 source",
+    "tags": ["lint"]
+  }
+]
